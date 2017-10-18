@@ -44,6 +44,9 @@ func main() {
 				id 
 				name
 			}				 
+			car{
+				name
+			}
 		}`
 	res := graphql.Do(graphql.Params{
 		Schema:        schema,

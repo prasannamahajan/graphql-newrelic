@@ -96,6 +96,7 @@ type PageInfo struct {
 type Query struct {
 	Rebels Faction `json:"rebels"`
 	Empire Faction `json:"empire"`
+	Car    Car     `json:"car"`
 	Node   Node    `json:"node"`
 }
 type QueryNodeArgs struct {
