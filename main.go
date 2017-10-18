@@ -44,7 +44,7 @@ func (q Query) ArgsForCar() QueryCarArgs {
 }
 
 type CarPriceArgs struct {
-	Unit string `json:"unit"`
+	Unit *string `json:"unit"`
 }
 
 func (c Car) ArgsForPrice() CarPriceArgs {
@@ -71,8 +71,10 @@ func NewRouter() *tools.Router {
 		return GetCar(args.Name), nil
 	})
 	router.Query("Car.Price", func(c Car, args CarPriceArgs) (interface{}, error) {
-		if args.Unit == "USD" {
-			return c.Price / 70, nil
+		if args.Unit != nil {
+			if *args.Unit == "USD" {
+				return c.Price / 70, nil
+			}
 		}
 		return c.Price, nil
 	})
