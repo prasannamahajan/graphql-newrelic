@@ -6,7 +6,7 @@ curl 'http://127.0.0.1:8080/graphql' -d '
 	}
 	car(name:"swift"){
 		name
-		price
+		price(unit:"USD")
 		colour
 	}
 }'

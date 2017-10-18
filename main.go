@@ -43,6 +43,14 @@ func (q Query) ArgsForCar() QueryCarArgs {
 	return QueryCarArgs{}
 }
 
+type CarPriceArgs struct {
+	Unit string `json:"unit"`
+}
+
+func (c Car) ArgsForPrice() CarPriceArgs {
+	return CarPriceArgs{}
+}
+
 func GetCar(name string) Car {
 	return data[name]
 }
@@ -61,6 +69,12 @@ func NewRouter() *tools.Router {
 	})
 	router.Query("Query.Car", func(q Query, args QueryCarArgs) (interface{}, error) {
 		return GetCar(args.Name), nil
+	})
+	router.Query("Car.Price", func(c Car, args CarPriceArgs) (interface{}, error) {
+		if args.Unit == "USD" {
+			return c.Price / 70, nil
+		}
+		return c.Price, nil
 	})
 	return router
 }
