@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/arvitaly/go-graphql-tools"
 	"github.com/arvitaly/graphql"
+	newrelic "github.com/newrelic/go-agent"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -31,8 +32,7 @@ type Query struct {
 }
 
 func GetCar(name string) Car {
-	return Car{Name: name, Company: "bmw", Colour: "Black", Abs: true, Price: 500000}
-	//	return data[name]
+	return data[name]
 }
 
 func GetUser() User {
@@ -67,25 +67,31 @@ func executeQuery(query string, schema graphql.Schema) *graphql.Result {
 }
 
 func queryHandler(w http.ResponseWriter, r *http.Request) {
-	//query := r.URL.Query().Get("query")
-	fmt.Println("method :", r.Method)
 	body, _ := ioutil.ReadAll(r.Body)
 	query := string(body)
-	result := executeQuery(query, g_schema)
+	result := executeQuery(query, schema)
 	json.NewEncoder(w).Encode(result)
 }
 
 func slog(h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		//	txn := App.StartTransaction("query", nil, nil)
-		//	defer txn.End()
+		txn := app.StartTransaction("query", nil, nil)
+		defer txn.End()
 		h.ServeHTTP(w, r) // call original
 	})
 }
 
-var g_schema graphql.Schema
+var schema graphql.Schema
+var data map[string]Car
+var app newrelic.Application
 
-func init() {
+func importData() {
+	data = make(map[string]Car)
+	data["b500"] = Car{Name: "b500", Company: "bmw", Colour: "blue", Abs: true, Price: 3000000}
+	data["indigo"] = Car{Name: "indigo", Company: "tata", Colour: "black", Abs: false, Price: 1000000}
+	data["swift"] = Car{Name: "swift", Company: "maruti", Colour: "grey", Abs: true, Price: 500000}
+}
+func initSchema() graphql.Schema {
 	router := NewRouter()
 	gen := tools.NewGenerator(router)
 	query := gen.GenerateObject(Query{})
@@ -98,14 +104,32 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	g_schema = schema
+	return schema
+}
+func initNewRelic() newrelic.Application {
+	const licKey = "newrelickey"
+	config := newrelic.NewConfig("tut3", licKey)
+	app, err := newrelic.NewApplication(config)
+	if err != nil {
+		panic(err)
+	}
+	return app
+}
+
+func dummyQuery() {
 	q := `query {
 				user{
 					name
 				}
 			}`
-	res := executeQuery(q, g_schema)
+	res := executeQuery(q, schema)
 	json.NewEncoder(os.Stdout).Encode(res)
+}
+func init() {
+	schema = initSchema()
+	app = initNewRelic()
+	importData()
+	dummyQuery()
 }
 
 func main() {
