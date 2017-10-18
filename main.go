@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"github.com/arvitaly/go-graphql-tools"
 	"github.com/arvitaly/graphql"
+	"github.com/graphql-go/graphql/language/ast"
+	"github.com/graphql-go/graphql/language/parser"
+	"github.com/graphql-go/graphql/language/printer"
+	"github.com/graphql-go/graphql/language/source"
 	newrelic "github.com/newrelic/go-agent"
 	"io/ioutil"
 	"log"
@@ -31,6 +35,14 @@ type Query struct {
 	User User `jsob:"user"`
 }
 
+type QueryCarArgs struct {
+	Input string `json:"input" graphql="input"`
+}
+
+func (q Query) ArgsForCar() QueryCarArgs {
+	return QueryCarArgs{}
+}
+
 func GetCar(name string) Car {
 	return data[name]
 }
@@ -44,11 +56,11 @@ func GetUser() User {
 
 func NewRouter() *tools.Router {
 	router := tools.NewRouter()
-	router.Query("Query.Car", func() (Car, error) {
-		return GetCar("b500"), nil
-	})
 	router.Query("Query.User", func() (User, error) {
 		return GetUser(), nil
+	})
+	router.Query("Query.Car", func(q Query, args QueryCarArgs) (interface{}, error) {
+		return GetCar(args.Input), nil
 	})
 	return router
 }
@@ -66,10 +78,56 @@ func executeQuery(query string, schema graphql.Schema) *graphql.Result {
 	return result
 }
 
+func customProcess(p graphql.Schema, q string) {
+	source := source.NewSource(&source.Source{
+		Body: []byte(q),
+		Name: "GraphQL request",
+	})
+	AST, err := parser.Parse(parser.ParseParams{Source: source})
+	if err != nil {
+		fmt.Println(err)
+	}
+	as := printer.Print(AST.Definitions[0])
+	fmt.Println(as)
+	fmt.Println("--------")
+	for _, definition := range AST.Definitions {
+		switch definition := definition.(type) {
+		case *ast.OperationDefinition:
+			fmt.Println("--------")
+			fmt.Println("In ast operation definition")
+			fmt.Println("Def name", definition.Name)
+			fmt.Println("Def kind", definition.Kind)
+			fmt.Println("Def directives", definition.GetDirectives())
+			fmt.Println("Def Operation", definition.GetOperation())
+			//fmt.Println("Def SelectionSet", definition.Se
+			if definition.GetName() != nil && definition.GetName().Value != "" {
+				fmt.Println("[", definition.GetName().Value, "]")
+			}
+			fmt.Println("--------")
+		case *ast.FragmentDefinition:
+			fmt.Println("In FragmentDefinition")
+			/*
+				key := ""
+				if definition.GetName() != nil && definition.GetName().Value != "" {
+					key = definition.GetName().Value
+				}
+						fragments[key] = definition
+					default:
+						return nil, fmt.Errorf("GraphQL cannot execute a request containing a %v", definition.GetKind())
+			*/
+
+		}
+
+	}
+
+	fmt.Println("--------")
+}
+
 func queryHandler(w http.ResponseWriter, r *http.Request) {
 	body, _ := ioutil.ReadAll(r.Body)
 	query := string(body)
 	result := executeQuery(query, schema)
+	//customProcess(schema, query)
 	json.NewEncoder(w).Encode(result)
 }
 
