@@ -10,18 +10,42 @@ import (
 )
 
 type Car struct {
-	Name   string `json:"name"`
-	Wheels int    `json:"wheels"`
+	Name    string `json:"name"`
+	Company string `json:"company"`
+	Colour  string `json:"colour"`
+	Abs     bool   `json:"abs"`
+	Price   int    `json:"price"`
+}
+
+type User struct {
+	Name     string `json:"name"`
+	MobileNo string `json:"mobileno"`
 }
 
 type Query struct {
-	Car Car `json:"car"`
+	Car  Car  `json:"car"`
+	User User `jsob:"user"`
+}
+
+func GetCar(name string) Car {
+	return Car{Name: name, Company: "bmw", Colour: "Black", Abs: true, Price: 500000}
+	//	return data[name]
+}
+
+func GetUser() User {
+	return User{
+		Name:     "Prasanna",
+		MobileNo: "8800220011",
+	}
 }
 
 func NewRouter() *tools.Router {
 	router := tools.NewRouter()
 	router.Query("Query.Car", func() (Car, error) {
-		return Car{Name: "bmw", Wheels: 4}, nil
+		return GetCar("b500"), nil
+	})
+	router.Query("Query.User", func() (User, error) {
+		return GetUser(), nil
 	})
 	return router
 }
@@ -39,10 +63,13 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	q := `query Q2{ 
+	q := `query { 
 			car{
 				name
-				wheels
+				company
+			}
+			user{
+				name
 			}
 		}`
 	res := graphql.Do(graphql.Params{
