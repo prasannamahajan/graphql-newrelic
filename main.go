@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"github.com/arvitaly/go-graphql-tools"
 	"github.com/arvitaly/graphql"
+	"io/ioutil"
 	"log"
-	//"os"
 	"net/http"
+	"os"
 )
 
 type Car struct {
@@ -53,6 +54,7 @@ func NewRouter() *tools.Router {
 }
 
 func executeQuery(query string, schema graphql.Schema) *graphql.Result {
+	fmt.Println("query is : ", query)
 	result := graphql.Do(graphql.Params{
 		RequestString: query,
 		Schema:        schema,
@@ -65,8 +67,10 @@ func executeQuery(query string, schema graphql.Schema) *graphql.Result {
 }
 
 func queryHandler(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("query")
-	fmt.Println("query is : ", query)
+	//query := r.URL.Query().Get("query")
+	fmt.Println("method :", r.Method)
+	body, _ := ioutil.ReadAll(r.Body)
+	query := string(body)
 	result := executeQuery(query, g_schema)
 	json.NewEncoder(w).Encode(result)
 }
@@ -95,19 +99,13 @@ func init() {
 		log.Fatal(err)
 	}
 	g_schema = schema
-	/*
-		q := `query {
-				car{
-					name
-					company
-				}
+	q := `query {
 				user{
 					name
 				}
 			}`
-		res := executeQuery(q, schema)
-		json.NewEncoder(os.Stdout).Encode(res)
-	*/
+	res := executeQuery(q, g_schema)
+	json.NewEncoder(os.Stdout).Encode(res)
 }
 
 func main() {
