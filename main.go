@@ -105,7 +105,6 @@ func customProcess(p graphql.Schema, q string) {
 	}
 	as := printer.Print(AST.Definitions[0])
 	fmt.Println(as)
-	fmt.Println("--------")
 	for _, definition := range AST.Definitions {
 		switch definition := definition.(type) {
 		case *ast.OperationDefinition:
@@ -115,25 +114,19 @@ func customProcess(p graphql.Schema, q string) {
 			fmt.Println("Def kind", definition.Kind)
 			fmt.Println("Def directives", definition.GetDirectives())
 			fmt.Println("Def Operation", definition.GetOperation())
-			//fmt.Println("Def SelectionSet", definition.Se
-			if definition.GetName() != nil && definition.GetName().Value != "" {
-				fmt.Println("[", definition.GetName().Value, "]")
-			}
-			fmt.Println("--------")
-		case *ast.FragmentDefinition:
-			fmt.Println("In FragmentDefinition")
-			/*
-				key := ""
-				if definition.GetName() != nil && definition.GetName().Value != "" {
-					key = definition.GetName().Value
+			fmt.Println("Def SelectionSet 0", definition.SelectionSet.Selections)
+			so := definition.SelectionSet.Selections[0]
+			ss := so.GetSelectionSet()
+			fmt.Println("Selection", *ss)
+			for _, selection := range definition.SelectionSet.Selections {
+				switch selection := selection.(type) {
+				case *ast.Field:
+					fmt.Println("Wooh I am type field", selection.Name.Value)
 				}
-						fragments[key] = definition
-					default:
-						return nil, fmt.Errorf("GraphQL cannot execute a request containing a %v", definition.GetKind())
-			*/
+			}
 
+			fmt.Println("--------")
 		}
-
 	}
 
 	fmt.Println("--------")
@@ -143,7 +136,7 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 	body, _ := ioutil.ReadAll(r.Body)
 	query := string(body)
 	result := executeQuery(query, schema)
-	//customProcess(schema, query)
+	customProcess(schema, query)
 	json.NewEncoder(w).Encode(result)
 }
 
