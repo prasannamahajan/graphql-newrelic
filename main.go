@@ -1,11 +1,18 @@
 package main
 
 import (
-	"fmt"
+	"encoding/json"
+	//"fmt"
 	"github.com/arvitaly/go-graphql-tools"
 	"github.com/arvitaly/graphql"
 	"log"
+	"os"
 )
+
+type Car struct {
+	Name   string `json:"name"`
+	Wheels int    `json:"wheels"`
+}
 
 func main() {
 	router := NewRouter()
@@ -20,7 +27,24 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	q := "test"
+	q := `query Q1{ 
+			rebels{
+				id 
+				name
+				ships{
+					edges{
+						node{
+							id
+							name
+						}
+					}
+				}
+			} 
+			empire{
+				id 
+				name
+			}				 
+		}`
 	res := graphql.Do(graphql.Params{
 		Schema:        schema,
 		RequestString: q,
@@ -28,5 +52,5 @@ func main() {
 	if res.HasErrors() {
 		log.Fatalf("Result has errors: %v", res.Errors)
 	}
-	fmt.Println(res)
+	json.NewEncoder(os.Stdout).Encode(res)
 }
