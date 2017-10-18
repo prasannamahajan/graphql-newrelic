@@ -3,10 +3,12 @@ package main
 import (
 	"encoding/json"
 	//"fmt"
+	"fmt"
 	"github.com/arvitaly/go-graphql-tools"
 	"github.com/arvitaly/graphql"
 	"log"
-	"os"
+	//"os"
+	"net/http"
 )
 
 type Car struct {
@@ -50,7 +52,36 @@ func NewRouter() *tools.Router {
 	return router
 }
 
-func main() {
+func executeQuery(query string, schema graphql.Schema) *graphql.Result {
+	result := graphql.Do(graphql.Params{
+		RequestString: query,
+		Schema:        schema,
+	},
+	)
+	if len(result.Errors) > 0 {
+		fmt.Println("some error occured")
+	}
+	return result
+}
+
+func queryHandler(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("query")
+	fmt.Println("query is : ", query)
+	result := executeQuery(query, g_schema)
+	json.NewEncoder(w).Encode(result)
+}
+
+func slog(h http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		//	txn := App.StartTransaction("query", nil, nil)
+		//	defer txn.End()
+		h.ServeHTTP(w, r) // call original
+	})
+}
+
+var g_schema graphql.Schema
+
+func init() {
 	router := NewRouter()
 	gen := tools.NewGenerator(router)
 	query := gen.GenerateObject(Query{})
@@ -63,21 +94,23 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	q := `query { 
-			car{
-				name
-				company
-			}
-			user{
-				name
-			}
-		}`
-	res := graphql.Do(graphql.Params{
-		Schema:        schema,
-		RequestString: q,
-	})
-	if res.HasErrors() {
-		log.Fatalf("Result has errors: %v", res.Errors)
-	}
-	json.NewEncoder(os.Stdout).Encode(res)
+	g_schema = schema
+	/*
+		q := `query {
+				car{
+					name
+					company
+				}
+				user{
+					name
+				}
+			}`
+		res := executeQuery(q, schema)
+		json.NewEncoder(os.Stdout).Encode(res)
+	*/
+}
+
+func main() {
+	http.HandleFunc("/graphql", slog(queryHandler))
+	http.ListenAndServe(":8080", nil)
 }
