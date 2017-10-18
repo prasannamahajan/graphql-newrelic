@@ -14,38 +14,35 @@ type Car struct {
 	Wheels int    `json:"wheels"`
 }
 
+type Query struct {
+	Car Car `json:"car"`
+}
+
+func NewRouter() *tools.Router {
+	router := tools.NewRouter()
+	router.Query("Query.Car", func() (Car, error) {
+		return Car{Name: "bmw", Wheels: 4}, nil
+	})
+	return router
+}
+
 func main() {
 	router := NewRouter()
 	gen := tools.NewGenerator(router)
 	query := gen.GenerateObject(Query{})
-	mutation := gen.GenerateObject(Mutation{})
+	//	mutation := gen.GenerateObject(Mutation{})
 
 	schema, err := graphql.NewSchema(graphql.SchemaConfig{
-		Query:    query,
-		Mutation: mutation,
+		Query: query,
+		//		Mutation: mutation,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-	q := `query Q1{ 
-			rebels{
-				id 
-				name
-				ships{
-					edges{
-						node{
-							id
-							name
-						}
-					}
-				}
-			} 
-			empire{
-				id 
-				name
-			}				 
+	q := `query Q2{ 
 			car{
 				name
+				wheels
 			}
 		}`
 	res := graphql.Do(graphql.Params{
