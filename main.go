@@ -36,7 +36,7 @@ type Query struct {
 }
 
 type QueryCarArgs struct {
-	Input string `json:"input" graphql="input"`
+	Name string `json:"name"`
 }
 
 func (q Query) ArgsForCar() QueryCarArgs {
@@ -60,7 +60,7 @@ func NewRouter() *tools.Router {
 		return GetUser(), nil
 	})
 	router.Query("Query.Car", func(q Query, args QueryCarArgs) (interface{}, error) {
-		return GetCar(args.Input), nil
+		return GetCar(args.Name), nil
 	})
 	return router
 }
@@ -153,11 +153,8 @@ func initSchema() graphql.Schema {
 	router := NewRouter()
 	gen := tools.NewGenerator(router)
 	query := gen.GenerateObject(Query{})
-	//	mutation := gen.GenerateObject(Mutation{})
-
 	schema, err := graphql.NewSchema(graphql.SchemaConfig{
 		Query: query,
-		//		Mutation: mutation,
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -187,7 +184,7 @@ func init() {
 	schema = initSchema()
 	app = initNewRelic()
 	importData()
-	dummyQuery()
+	//	dummyQuery()
 }
 
 func main() {
