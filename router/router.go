@@ -1,6 +1,6 @@
 package router
 
-import "github.com/arvitaly/go-graphql-tools"
+import "github.com/prasannamahajan/go-graphql-tools"
 import "github.com/prasannamahajan/graphql-newrelic/schema"
 import "github.com/prasannamahajan/graphql-newrelic/data"
 

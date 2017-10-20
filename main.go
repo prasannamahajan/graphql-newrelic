@@ -2,8 +2,9 @@ package main
 
 import (
 	"encoding/json"
-	"github.com/arvitaly/go-graphql-tools"
-	"github.com/arvitaly/graphql"
+	"fmt"
+	"github.com/prasannamahajan/go-graphql-tools"
+	"github.com/prasannamahajan/graphql"
 	"github.com/prasannamahajan/graphql-newrelic/data"
 	"github.com/prasannamahajan/graphql-newrelic/relicconf"
 	"github.com/prasannamahajan/graphql-newrelic/router"
@@ -11,6 +12,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 )
 
 func InitSchema() graphql.Schema {
@@ -49,9 +51,21 @@ func queryHandler(w http.ResponseWriter, r *http.Request) {
 
 var Schema graphql.Schema
 
+func Usage() {
+	fmt.Printf("\nUsage : %s <appname> <lickey>\n", os.Args[0])
+	os.Exit(1)
+}
+func parseArgs() (string, string) {
+	if len(os.Args) != 3 {
+		Usage()
+	}
+	return os.Args[1], os.Args[2]
+}
+
 func init() {
 	Schema = InitSchema()
-	relicconf.InitNewRelic()
+	appname, licKey := parseArgs()
+	relicconf.InitNewRelic(appname, licKey)
 	data.ImportData()
 }
 

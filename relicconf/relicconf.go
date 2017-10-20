@@ -10,10 +10,9 @@ func GetRelicApp() newrelic.Application {
 	return app
 }
 
-func InitNewRelic() {
+func InitNewRelic(appname string, lickey string) {
 	var err error
-	const licKey = "newrelickey"
-	config := newrelic.NewConfig("tut4", licKey)
+	config := newrelic.NewConfig(appname, lickey)
 	app, err = newrelic.NewApplication(config)
 	if err != nil {
 		panic(err)
