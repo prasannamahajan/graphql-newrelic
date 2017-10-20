@@ -8,77 +8,29 @@ import (
 	"github.com/arvitaly/graphql"
 	"github.com/graphql-go/graphql/language/ast"
 	"github.com/graphql-go/graphql/language/parser"
-	"github.com/graphql-go/graphql/language/printer"
 	"github.com/graphql-go/graphql/language/source"
-	newrelic "github.com/newrelic/go-agent"
+	"graphql-newrelic/data"
+	"graphql-newrelic/relicconf"
+	"graphql-newrelic/router"
+	"graphql-newrelic/schema"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 )
 
-type Car struct {
-	Name    string `json:"name"`
-	Company string `json:"company"`
-	Colour  string `json:"colour"`
-	Abs     bool   `json:"abs"`
-	Price   int    `json:"price"`
-}
-
-type User struct {
-	Name     string `json:"name"`
-	MobileNo string `json:"mobileno"`
-}
-
-type Query struct {
-	Car  Car  `json:"car"`
-	User User `jsob:"user"`
-}
-
-type QueryCarArgs struct {
-	Name string `json:"name"`
-}
-
-func (q Query) ArgsForCar() QueryCarArgs {
-	return QueryCarArgs{}
-}
-
-type CarPriceArgs struct {
-	Unit *string `json:"unit"`
-}
-
-func (c Car) ArgsForPrice() CarPriceArgs {
-	return CarPriceArgs{}
-}
-
-func GetCar(name string) Car {
-	return data[name]
-}
-
-func GetUser() User {
-	return User{
-		Name:     "Prasanna",
-		MobileNo: "8800220011",
+func InitSchema() graphql.Schema {
+	router := router.NewRouter()
+	gen := tools.NewGenerator(router)
+	query := gen.GenerateObject(schema.Query{})
+	schema, err := graphql.NewSchema(graphql.SchemaConfig{
+		Query: query,
+	})
+	if err != nil {
+		log.Fatal(err)
 	}
-}
-
-func NewRouter() *tools.Router {
-	router := tools.NewRouter()
-	router.Query("Query.User", func() (User, error) {
-		return GetUser(), nil
-	})
-	router.Query("Query.Car", func(q Query, args QueryCarArgs) (interface{}, error) {
-		return GetCar(args.Name), nil
-	})
-	router.Query("Car.Price", func(c Car, args CarPriceArgs) (interface{}, error) {
-		if args.Unit != nil {
-			if *args.Unit == "USD" {
-				return c.Price / 70, nil
-			}
-		}
-		return c.Price, nil
-	})
-	return router
+	return schema
 }
 
 func executeQuery(query string, schema graphql.Schema) *graphql.Result {
@@ -94,91 +46,53 @@ func executeQuery(query string, schema graphql.Schema) *graphql.Result {
 	return result
 }
 
-func customProcess(p graphql.Schema, q string) {
+func getTypesFromQuery(q string) (string, error) {
 	source := source.NewSource(&source.Source{
 		Body: []byte(q),
 		Name: "GraphQL request",
 	})
+	querytypes := make([]string, 0)
 	AST, err := parser.Parse(parser.ParseParams{Source: source})
 	if err != nil {
 		fmt.Println(err)
+		return "", err
 	}
-	as := printer.Print(AST.Definitions[0])
-	fmt.Println(as)
 	for _, definition := range AST.Definitions {
 		switch definition := definition.(type) {
 		case *ast.OperationDefinition:
-			fmt.Println("--------")
-			fmt.Println("In ast operation definition")
-			fmt.Println("Def name", definition.Name)
-			fmt.Println("Def kind", definition.Kind)
-			fmt.Println("Def directives", definition.GetDirectives())
-			fmt.Println("Def Operation", definition.GetOperation())
-			fmt.Println("Def SelectionSet 0", definition.SelectionSet.Selections)
-			so := definition.SelectionSet.Selections[0]
-			ss := so.GetSelectionSet()
-			fmt.Println("Selection", *ss)
 			for _, selection := range definition.SelectionSet.Selections {
 				switch selection := selection.(type) {
 				case *ast.Field:
-					fmt.Println("Wooh I am type field", selection.Name.Value)
+					querytypes = append(querytypes, selection.Name.Value)
 				}
 			}
-
-			fmt.Println("--------")
 		}
 	}
-
-	fmt.Println("--------")
+	return strings.Join(querytypes, ","), nil
 }
 
+var gquery string
+
 func queryHandler(w http.ResponseWriter, r *http.Request) {
-	body, _ := ioutil.ReadAll(r.Body)
-	query := string(body)
-	result := executeQuery(query, schema)
-	customProcess(schema, query)
+	result := executeQuery(gquery, Schema)
 	json.NewEncoder(w).Encode(result)
 }
 
 func slog(h http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		txn := app.StartTransaction("query", nil, nil)
+		body, _ := ioutil.ReadAll(r.Body)
+		defer r.Body.Close()
+		gquery = string(body)
+		types, _ := getTypesFromQuery(gquery)
+		fmt.Println("types :-", types)
+		app := relicconf.GetRelicApp()
+		txn := app.StartTransaction(types, nil, nil)
 		defer txn.End()
 		h.ServeHTTP(w, r) // call original
 	})
 }
 
-var schema graphql.Schema
-var data map[string]Car
-var app newrelic.Application
-
-func importData() {
-	data = make(map[string]Car)
-	data["b500"] = Car{Name: "b500", Company: "bmw", Colour: "blue", Abs: true, Price: 3000000}
-	data["indigo"] = Car{Name: "indigo", Company: "tata", Colour: "black", Abs: false, Price: 1000000}
-	data["swift"] = Car{Name: "swift", Company: "maruti", Colour: "grey", Abs: true, Price: 500000}
-}
-func initSchema() graphql.Schema {
-	router := NewRouter()
-	gen := tools.NewGenerator(router)
-	query := gen.GenerateObject(Query{})
-	schema, err := graphql.NewSchema(graphql.SchemaConfig{
-		Query: query,
-	})
-	if err != nil {
-		log.Fatal(err)
-	}
-	return schema
-}
-func initNewRelic() newrelic.Application {
-	const licKey = "newrelickey"
-	config := newrelic.NewConfig("tut3", licKey)
-	app, err := newrelic.NewApplication(config)
-	if err != nil {
-		panic(err)
-	}
-	return app
-}
+var Schema graphql.Schema
 
 func dummyQuery() {
 	q := `query {
@@ -186,17 +100,18 @@ func dummyQuery() {
 					name
 				}
 			}`
-	res := executeQuery(q, schema)
+	res := executeQuery(q, Schema)
 	json.NewEncoder(os.Stdout).Encode(res)
 }
 func init() {
-	schema = initSchema()
-	app = initNewRelic()
-	importData()
+	Schema = InitSchema()
+	relicconf.InitNewRelic()
+	data.ImportData()
 	//	dummyQuery()
 }
 
 func main() {
 	http.HandleFunc("/graphql", slog(queryHandler))
+	fmt.Println("Starting Server")
 	http.ListenAndServe(":8080", nil)
 }
