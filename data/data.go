@@ -1,6 +1,6 @@
 package data
 
-import "graphql-newrelic/schema"
+import "github.com/prasannamahajan/graphql-newrelic/schema"
 
 var Data map[string]schema.Car
 

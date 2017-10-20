@@ -1,8 +1,8 @@
 package router
 
 import "github.com/arvitaly/go-graphql-tools"
-import "graphql-newrelic/schema"
-import "graphql-newrelic/data"
+import "github.com/prasannamahajan/graphql-newrelic/schema"
+import "github.com/prasannamahajan/graphql-newrelic/data"
 
 func NewRouter() *tools.Router {
 	router := tools.NewRouter()
